@@ -1,65 +1,88 @@
-// src/pages/Characters.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CharacterCard from "../components/CharacterCard.jsx";
+import useFilms from "../hooks/useFilms.js";
 export default function Characters() {
-  const [films, setFilms] = useState([]); // estado: lista de pelis
-  const [loading, setLoading] = useState(false); // indica si estamos pidiendo a la  API;
-  const [error, setError] = useState(null); // para mostrar errores si ocurren
-  const CACHE_KEY = "ghibli_films"; // clave única para guardar en localStorage
-  // Función que pide datos reales a la API y guarda en estado y localStorage
-  function fetchFilmsFromAPI() {
-    setLoading(true);
-    setError(null);
-    fetch("https://ghibliapi.vercel.app/films")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("HTTP " + response.status);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        // Guardamos en el estado (para mostrar en pantalla)
-        setFilms(data);
-        // También guardamos una copia en localStorage para usarla más tarde
-        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-      })
-      .catch((err) => {
-        setError(err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }
-  // Al montar el componente, comprobamos si hay cache
+  // 1) Traemos datos, estados y función reload desde el hook
+  const { films, loading, error, reload } = useFilms();
+  // 2) Estado para el término de búsqueda (input controlado)
+  const [search, setSearch] = useState("");
+  // 3) Clave para guardar el término en localStorage
+  const SEARCH_KEY = "ghibli_films_search_v1";
+  // 4) Al montar la página, intentamos recuperar el último término buscado
   useEffect(() => {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      // Si había cache, la usamos parseando el texto JSON
-      const parsedData = JSON.parse(cached);
-      setFilms(parsedData);
-    } else {
-      // Si NO había cache, pedimos a la API
-      fetchFilmsFromAPI();
+    const saved = localStorage.getItem(SEARCH_KEY);
+    if (saved) {
+      setSearch(saved); // si había algo guardado, lo restauramos
     }
-  }, []); // [] → solo al montar
-  // Botón de recarga manual: borra cache y pide a la API de nuevo
-  function handleReloadClick() {
-    localStorage.removeItem(CACHE_KEY); // borramos cache
-    fetchFilmsFromAPI(); // pedimos de nuevo
+  }, []);
+  // 5) Cada vez que cambia "search", lo persistimos
+  useEffect(() => {
+    localStorage.setItem(SEARCH_KEY, search);
+  }, [search]);
+  // 6) Manejador del input: guarda en estado lo que escribe el usuario
+  function handleSearchChange(e) {
+    // e.target.value = texto actual del input
+    setSearch(e.target.value);
   }
-  // Tres posibles estados visuales
-  if (loading) return <p>Cargando películas...</p>;
-  if (error) return <p>Error al cargar: {error.message}</p>;
+  // 7) Filtro simple y claro (case-insensitive)
+  // - Normalizamos a minúsculas
+  // - Quitamos espacios sobrantes con trim()
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (term === "") return films; // sin filtro, devuelve todo
+    // Filtramos por "name" (que viene normalizado desde el hook)
+    return films.filter((film) => film.name.toLowerCase().includes(term));
+  }, [films, search]);
+  if (loading) return <p>Cargando películas…</p>;
+  if (error) {
+    return (
+      <section>
+        <p>Error al cargar: {error.message}</p>
+        <button onClick={reload}>Reintentar</button>
+      </section>
+    );
+  }
   return (
     <section>
       <h2>Películas de Studio Ghibli</h2>
-      <p>Total: {films.length}</p>
-      <button onClick={handleReloadClick}>Recargar desde la API</button>
-      <ul>
-        {films.map((film) => (
-          <CharacterCard key={film.id} character={film} />
-        ))}
-      </ul>
+      {/* Barra de acciones: búsqueda y recargar */}
+      <div style={{ display: "flex", gap: "8px", margin: "12px 0" }}>
+        {/* Input controlado: value muestra "search", onChange actualiza "search"
+         */}
+        <input
+          type="text"
+          placeholder="Buscar por título…"
+          value={search}
+          onChange={handleSearchChange}
+          style={{
+            flex: 1,
+            padding: "0.6rem",
+            border: "1px solid #ddd",
+            borderRadius: "6px",
+            fontSize: "1rem",
+          }}
+          aria-label="Buscar películas por título"
+        />
+        {/* Opción para pedir otra vez a la API si lo deseas */}
+        <button onClick={reload}>Recargar</button>
+      </div>
+      {/* Resumen didáctico: cuántas coinciden y si hay filtro activo */}
+      <p style={{ marginBottom: "8px", color: "#555" }}>
+        {search.trim() === ""
+          ? `Total: ${films.length} películas`
+          : `Coincidencias para "${search.trim()}": ${filtered.length} /
+${films.length}`}
+      </p>
+      {/* Lista (ya filtrada) */}
+      {filtered.length === 0 ? (
+        <p>No hay resultados para la búsqueda actual.</p>
+      ) : (
+        <ul>
+          {filtered.map((film) => (
+            <CharacterCard key={film.id} character={film} />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
