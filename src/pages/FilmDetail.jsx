@@ -73,25 +73,40 @@ export default function FilmDetail() {
   }
   // Vista de detalle
   return (
-    <section>
-      <div style={{ marginBottom: "12px" }}>
+    <section style={{ margin: "50px" }}>
+      <div style={{ marginBottom: "12px"}}>
         <button onClick={() => navigate(-1)}>Volver</button>{" "}
         <Link to="/characters">Ir al listado</Link>
       </div>
       <h2>{film.name}</h2>
-      {film.image && (
-        <img
-          src={film.image}
-          alt={film.name}
-          style={{
-            width: "100%",
-            height: "auto",
-            borderRadius: 6,
-            margin: "12px 0",
-          }}
-        />
-      )}
-      <p style={{ lineHeight: 1.6 }}>{film.description}</p>
+      <div style={{
+        display: "flex",
+        flexDirection: "row",
+        justifyContent: "space-around",
+      }
+      }>
+        <div style={{
+          width: "50%"
+        }}>
+          {film.image && (
+            <img
+              src={film.image}
+              alt={film.name}
+              style={{
+                width: "70%",
+                height: "auto",
+                borderRadius: 6,
+                margin: "12px 0",
+              }}
+            />
+          )}
+        </div>
+        <div style={{
+          width: "50%"
+        }}>
+          <p style={{ lineHeight: 1.6 }}>{film.description}</p>
+        </div>
+      </div>
     </section>
   );
 }
